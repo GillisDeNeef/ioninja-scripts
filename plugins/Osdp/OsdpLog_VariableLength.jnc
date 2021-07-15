@@ -1,0 +1,130 @@
+//..............................................................................
+//
+// OSDP variable length representations
+//
+
+//..............................................................................
+
+void representOsdpRaw(
+        log.Representation* representation,
+        char const* p,
+        size_t size
+        )
+{
+        representation.addPlainText($" ");
+        
+        log.representStruct(
+                representation,
+                typeof(OsdpRaw),
+                $"Data",
+                OsdpLogPartCode.RawPacket,
+                p,
+                6,
+                1, 0, 0
+                );
+
+        std.StringBuilder raw;
+        for (int i = 0; i < size - 4; i++) 
+        {
+                raw.append($"%02X "((*(p+4+i))&0xFF));
+        }
+        
+        representation.addHyperText($"    Data:\t\e^!%1,%2\e[34m%3"(
+                10,
+                size - 4,
+                raw.detachString()
+                ));
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representOsdpIstatr(
+        log.Representation* representation,
+        char const* p,
+        size_t size
+        )
+{
+        representation.addPlainText($" ");
+        
+        for (int i = 0; i < size; i++)
+        {
+            representation.addHyperText($"    Input %1:\t\e^!%2,1\e[34m%3"(
+                    i,
+                    i+6,
+                    typeof(OsdpInputStatus).getValueString(p[i])
+                    ));
+        }
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representOsdpOstatr(
+        log.Representation* representation,
+        char const* p,
+        size_t size
+        )
+{
+        representation.addPlainText($" ");
+        
+        for (int i = 0; i < size; i++)
+        {
+            representation.addHyperText($"    Output %1:\t\e^!%2,1\e[34m%3"(
+                    i,
+                    i+6,
+                    typeof(OsdpOutputStatus).getValueString(p[i])
+                    ));
+        }
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representOsdpPdcap(
+        log.Representation* representation,
+        char const* p,
+        size_t size
+        )
+{
+        representation.addPlainText($" ");
+        
+        for (int i = 0; i < size/3; i++)
+        {
+                if (p[i*3] == OsdpFunctionCode.Input || 
+                    p[i*3] == OsdpFunctionCode.Output || 
+                    p[i*3] == OsdpFunctionCode.Led || 
+                    p[i*3] == OsdpFunctionCode.Buzzer || 
+                    p[i*3] == OsdpFunctionCode.Text) 
+                {
+                        representation.addHyperText($"    \e^!%1,1\e[34m%2x\t\e^!%3,1\e[34m%4\t<\e^!%5,1\e[34m%6>"(
+                                6+(i*3)+2,
+                                p[i*3+2],
+                                6+(i*3),
+                                typeof(OsdpFunctionCode).getValueString(p[i*3]),
+                                6+(i*3)+1,
+                                p[i*3+1]
+                                ));
+                }
+                else if (p[i*3] == OsdpFunctionCode.TransmitBuffer || 
+                         p[i*3] == OsdpFunctionCode.ReceiveBuffer) 
+                {
+                        representation.addHyperText($"    \e^!%1,2\e[34m%2x\t\e^!%3,1\e[34m%4"(
+                                6+(i*3)+1,
+                                p[(i*3)+2]*255 + p[(i*3)+1],
+                                6+(i*3),
+                                typeof(OsdpFunctionCode).getValueString(p[i*3])
+                                ));
+                }
+                else
+                {
+                        representation.addHyperText($"    \e^!%1,1\e[34m%2\t\e^!%3,1\e[34m%4\t<\e^!%5,1\e[34m%6>"(
+                                6+(i*3)+2,
+                                $"  ",
+                                6+(i*3),
+                                typeof(OsdpFunctionCode).getValueString(p[i*3]),
+                                6+(i*3)+1,
+                                p[i*3+1]
+                                ));
+                }
+        }
+}
+
+//..............................................................................

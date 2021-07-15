@@ -1,0 +1,217 @@
+//..............................................................................
+//
+// OSDP Protocol Analyzer layer
+//
+
+import "doc_Layer.jnc"
+
+//..............................................................................
+
+class OsdpLayer:
+	doc.Layer,
+	log.Converter
+{
+protected:
+	static const std.Guid m_logGuid = "d5efd9a3-9be1-45ca-8366-c20b0aa80f46";
+
+	OsdpParser m_rxParser;
+
+public:
+	construct(doc.PluginHost* pluginHost);
+
+	override bool convert(
+		log.Writer* writer,
+		uint64_t timestamp,
+		uint64_t recordCode,
+		void const* p,
+		size_t size
+		);
+
+	override void reset();
+        
+protected:
+        enum Filter
+	{
+                None,
+		Plain,
+		Polling,
+	}
+        
+        enum Def
+	{
+		Filter          = OsdpLayer.Filter.None,
+	}
+        
+        ui.ComboBox* m_filterCombo;
+        ui.EnumProperty* m_filterProp;
+        
+	void createUi();
+	void onFilterChanged();
+        
+        override void load(doc.Storage* storage);
+	override void save(doc.Storage* storage);
+	override void updateProperties();
+	override bool errorcode applyProperties();
+	override void restoreDefaultProperties();
+        
+protected:
+        OsdpInfoSet m_infoSet;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+OsdpLayer.construct(doc.PluginHost* pluginHost)
+{
+	basetype1.construct(pluginHost);
+        createUi();
+	pluginHost.m_log.addSelectionProcessor(OsdpCrcCalcRangeProcessor.factory~(m_infoSet));
+	pluginHost.m_log.addConverter(this, &m_logGuid);
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.createUi()
+{
+	static ui.EnumPropertyOption filterTable[] =
+	{
+                { "None",   Filter.None },
+		{ "Plain",   Filter.Plain },
+		{ "Polling", Filter.Polling },
+	}
+
+	m_filterCombo = m_pluginHost.m_toolBar.addComboBox(
+		"Filter:",
+		filterTable,
+		countof(filterTable)
+		);
+
+	bindingof(m_filterCombo.m_currentIndex) += onFilterChanged;
+        
+        m_filterProp = m_pluginHost.m_propertyGrid.createEnumProperty(
+		"Filter",
+		"Specify a filter for the OSDP protocol log",
+		filterTable,
+		countof(filterTable)
+		);
+                
+        m_infoSet.create(m_pluginHost.m_informationGrid);
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.onFilterChanged()
+{
+        switch ((Filter)m_filterCombo.m_currentData)
+        {
+                case Filter.None:
+                        m_rxParser.m_filter_plain = false;
+                        m_rxParser.m_filter_poll = false;
+                        break;
+                case Filter.Plain:
+                        m_rxParser.m_filter_plain = true;
+                        m_rxParser.m_filter_poll = false;
+                        break;
+                case Filter.Polling:
+                        m_rxParser.m_filter_plain = true;
+                        m_rxParser.m_filter_poll = true;
+                        break;
+        }
+}
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.load(doc.Storage* storage)
+{
+	m_filterProp.m_value = storage.readInt("filter", Def.Filter);
+
+	applyProperties();
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.save(doc.Storage* storage)
+{
+	storage.writeInt("filter", m_filterProp.m_value);
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.updateProperties()
+{
+	m_filterProp.m_value = m_filterCombo.m_currentData;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+bool errorcode OsdpLayer.applyProperties()
+{
+	m_pluginHost.m_log.suspend();
+
+	Filter filter = m_filterProp.m_value;
+	m_filterCombo.m_currentData = filter;
+        
+        switch (filter)
+        {
+                case Filter.None:
+                        m_rxParser.m_filter_plain = false;
+                        m_rxParser.m_filter_poll = false;
+                        break;
+                case Filter.Plain:
+                        m_rxParser.m_filter_plain = true;
+                        m_rxParser.m_filter_poll = false;
+                        break;
+                case Filter.Polling:
+                        m_rxParser.m_filter_plain = true;
+                        m_rxParser.m_filter_poll = true;
+                        break;
+        }
+
+	m_pluginHost.m_log.resume();
+	return true;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.restoreDefaultProperties()
+{
+	m_filterProp.m_value = Def.Filter;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+bool OsdpLayer.convert(
+	log.Writer* writer,
+	uint64_t timestamp,
+	uint64_t recordCode,
+	void const* p,
+	size_t size
+	)
+{
+	bool result;
+	OsdpParser* parser;
+
+	switch (recordCode)
+	{
+	case log.StdRecordCode.SessionStarted:
+		reset();
+		break;
+
+	case log.StdRecordCode.Rx:
+		parser = &m_rxParser;
+		break;
+	}
+
+	if (!parser)
+		return false;
+
+	parser.parse(writer, timestamp, recordCode, p, size);
+	return true;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpLayer.reset()
+{
+	m_rxParser.reset();
+}
+
+//..............................................................................

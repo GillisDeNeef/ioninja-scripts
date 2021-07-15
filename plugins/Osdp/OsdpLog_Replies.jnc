@@ -1,0 +1,147 @@
+//..............................................................................
+//
+// OSDP reply definitions
+//
+
+//..............................................................................
+
+alignment(1);
+
+// Enums . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpNakErrorCode : uint8_t
+{
+        BadChecksumOrCrc            = 0x01,
+        CommandLengthError,
+        UnknownCommandCode,
+        UnexpectedSequenceNumber,
+        SecurityBlockNotSupported,
+        SecurityConditionsNotMet,
+        BioTypeNotSupported,
+        BioFormatNotSupported,
+        UnableToProcessCommandRecord,
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpFunctionCode : uint8_t
+{
+        Input                       = 0x01,
+        Output,
+        Card,
+        Led,
+        Buzzer,
+        Text,
+        Time,
+        Check,
+        Encyption,
+        ReceiveBuffer,
+        TransmitBuffer,
+        SmartCard,
+        Readers,
+        Biometrics,
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpInputStatus : uint8_t
+{
+        Inactive                    = 0x00,
+        Active
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpOutputStatus : uint8_t
+{
+        Inactive                    = 0x00,
+        Active
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpTamperStatus : uint8_t
+{
+        Normal                      = 0x00,
+        Tamper
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpPowerStatus : uint8_t
+{
+        Normal                      = 0x00,
+        Failure
+}
+
+// Structs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpNak
+{
+        [ displayName = "Error Code" ]
+        OsdpNakErrorCode m_model;
+}
+
+struct OsdpPdid
+{
+	[ displayName = "Vendor Code", formatFunc = formatHex24 ]
+        uint8_t m_vendor[3];
+
+        [ displayName = "Model", formatSpec  = "0x%04X" ]
+        uint16_t m_model;
+
+        [ displayName = "Serial Number", formatSpec  = "0x%08X" ]
+        uint32_t m_serial;
+
+        [ displayName = "Firmware Version" , formatFunc = formatHex24 ]
+        uint8_t m_firmware[3];
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpLstatr
+{   
+        [ displayName = "Tamper Status" ]
+        OsdpTamperStatus m_tamper;
+
+        [ displayName = "Power Status" ]
+        OsdpPowerStatus m_power;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpRaw
+{   
+        [ displayName = "Reader Number" ]
+        uint8_t m_reader;
+        
+        [ displayName = "Format Code" ]
+        uint8_t m_format;
+        
+        [ displayName = "Bit Count", formatFunc = formatBitToByte ]
+        uint16_t m_count;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpCom
+{  
+        [ displayName = "New Address" ]
+        uint8_t m_address;
+
+        [ displayName = "New Baudrate" ]
+        uint32_t m_baud;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpMfgrep
+{
+        [ displayName = "Vendor Code", formatFunc = formatHex24 ]
+        uint8_t m_vendor[3];
+        
+        [ displayName = "Command ID" ]
+        uint8_t m_id;
+}
+
+//..............................................................................

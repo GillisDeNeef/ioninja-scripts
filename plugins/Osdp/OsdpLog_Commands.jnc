@@ -1,0 +1,179 @@
+//..............................................................................
+//
+// OSDP command definitions
+//
+
+//..............................................................................
+
+alignment(1);
+
+// Enums . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpOutputControlCode: uint8_t
+{
+	Nop                         = 0x00,
+	PermanentOffAbortTimed,
+	PermanentOnAbortTimed,
+	PermanentOffCompleteTimed,
+	PermanentOnCompleteTimed,
+        TemporaryOn,
+        TemporaryOff,
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpLedTemporaryControlCode: uint8_t
+{
+	Nop                         = 0x00,
+	Abort,
+	Set,
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpLedPermanentControlCode: uint8_t
+{
+	Nop                         = 0x00,
+	Set,
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpLedColor : uint8_t
+{
+        Off                         = 0x00,
+        Red,
+        Green,
+        Orange,
+        Blue,
+        Pink,
+        Cyan,
+        White
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+enum OsdpBuzTone : uint8_t
+{
+        Nop                        = 0x00,
+        Abort,
+        Set,
+}
+
+// Structs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpId
+{   
+        [ displayName = "Request Code", formatSpec  = "0x%02X" ]
+        uint8_t m_request;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpCap
+{   
+        [ displayName = "Request Code", formatSpec  = "0x%02X" ]
+        uint8_t m_request;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpOut
+{   
+        [ displayName = "Output Number" ]
+        uint8_t m_number;
+        
+        [ displayName = "Control Code" ]
+        OsdpOutputControlCode m_control;
+        
+        [ displayName = "Time (x100ms)" ]
+        uint16_t m_time;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpLed
+{   
+        [ displayName = "Reader Number" ]
+        uint8_t m_reader;
+        
+        [ displayName = "LED Number" ]
+        uint8_t m_number;
+        
+        [ displayName = "Temporary Control Code" ]
+        OsdpLedTemporaryControlCode m_temp_control;
+        
+        [ displayName = "Temporary On Time (x100ms)" ]
+        uint8_t m_temp_on_time;
+        
+        [ displayName = "Temporary Off Time (x100ms)" ]
+        uint8_t m_temp_off_time;
+        
+        [ displayName = "Temporary On Color" ]
+        OsdpLedColor m_temp_on_color;
+        
+        [ displayName = "Temporary Off Color" ]
+        OsdpLedColor m_temp_off_color;
+        
+        [ displayName = "Temporary Duration (x100ms)" ]
+        uint16_t m_temp_duration;
+        
+        [ displayName = "Permanent Control Code" ]
+        OsdpLedPermanentControlCode m_perm_control;
+        
+        [ displayName = "Permanent On Time (x100ms)" ]
+        uint8_t m_perm_on_time;
+        
+        [ displayName = "Permanent Off Time (x100ms)" ]
+        uint8_t m_perm_off_time;
+        
+        [ displayName = "Permanent On Color" ]
+        OsdpLedColor m_perm_on_color;
+        
+        [ displayName = "Permanent Off Color" ]
+        OsdpLedColor m_perm_off_color;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpBuz
+{   
+        [ displayName = "Reader Number" ]
+        uint8_t m_reader;
+        
+        [ displayName = "Tone Code" ]
+        OsdpBuzTone m_tone;
+        
+        [ displayName = "On Time (x100ms)" ]
+        uint8_t m_on_time;
+        
+        [ displayName = "Off Time (x100ms)" ]
+        uint8_t m_off_time;
+        
+        [ displayName = "Count" ]
+        uint8_t m_count;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpComset
+{   
+        [ displayName = "New Address" ]
+        uint8_t m_address;
+
+        [ displayName = "New Baudrate" ]
+        uint32_t m_baud;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpMfg
+{   
+        [ displayName = "Vendor Code", formatFunc = formatHex24 ]
+        uint8_t m_vendor[3];
+        
+        [ displayName = "Command ID" ]
+        uint8_t m_id;
+}
+
+//..............................................................................

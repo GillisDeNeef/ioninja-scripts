@@ -1,0 +1,263 @@
+//..............................................................................
+//
+// OSDP RTU log record declarations and representer
+//
+
+import "crc16.jnc"
+import "log_Representation.jnc"
+import "log_RepresentStruct.jnc"
+
+//..............................................................................
+
+bool representOsdpLog(
+	log.Representation* representation,
+	uint64_t recordCode,
+	void const* p,
+	size_t size,
+	uint_t foldFlags
+	)
+{
+	switch (recordCode)
+	{
+                case OsdpLogRecordCode.Packet:
+                        representPacket(representation, p, size, foldFlags);
+                        break;
+                        
+                case OsdpLogRecordCode.Timeout:
+                        representTimeout(representation, p, size, foldFlags);
+                        break;
+                        
+                case OsdpLogRecordCode.InvalidPacketCrc:
+                        representInvalidCrc(representation, p, size, foldFlags);
+                        break;
+
+                case OsdpLogRecordCode.InvalidPacketLength:
+                        representation.m_lineAttr.m_backColor = ui.StdColor.PastelRed;
+                        representation.m_lineAttr.m_iconIdx = log.StdLogIcon.Packet;
+                        representation.addHyperText($"    \e[1mOSDP  \e[m INVALID LENGTH");
+                        break;
+                        
+                case OsdpLogRecordCode.InvalidPacketSqn:
+                        representation.m_lineAttr.m_backColor = ui.StdColor.PastelRed;
+                        representation.m_lineAttr.m_iconIdx = log.StdLogIcon.Packet;
+                        representation.addHyperText($"    \e[1mOSDP  \e[m INVALID SQN");
+                        break;
+
+                default:
+                        return false;
+	}
+
+	return true;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representInvalidCrc(
+	log.Representation* representation,
+	char const* p,
+	size_t size,
+	uint_t foldFlags
+	)
+{
+        representation.m_lineAttr.m_backColor = ui.StdColor.PastelRed;
+        representation.m_lineAttr.m_iconIdx = log.StdLogIcon.Packet;
+
+	if (!foldFlags)
+	{
+                representation.addHyperText($"[\e^+1\e[34m+\e[m] \e[1mOSDP  \e[m INVALID CRC %1 \e[34m%2"(
+                        (*(p+1) & 0x80) ? "\u2190" : "\u2192",
+                        *(p+1) & 0x7F
+                        ));
+	}
+	else
+	{
+                uint16_t crc = (*(p+size-2)&0x00FF) + ((*(p+size-1) << 8)&0xFF00);
+                representation.addHyperText($"[\e^-1\e[34m-\e[m] \e[1mOSDP\n"
+                                            $"    Expected CRC16:\t\e[34m%(1; 04X)\n"
+                                            $"    Received CRC16:\t\e^!%2,2\e[34m%(3; 04X)"(
+			crc16_ccitt(p, size - 2, 0x1D0F),
+                        size-2,
+                        crc
+			));
+                        
+                representation.m_lineAttr.m_backColor = ui.StdColor.White;
+		representation.addBin(OsdpLogPartCode.RawPacket, p, size);
+        }
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representTimeout(
+	log.Representation* representation,
+	char const* p,
+	size_t size,
+	uint_t foldFlags
+	)
+{
+        representation.m_lineAttr.m_backColor = ui.StdColor.PastelRed;
+        representation.m_lineAttr.m_iconIdx = log.StdLogIcon.Packet;
+
+	if (!foldFlags)
+	{
+                representation.addHyperText($"[\e^+1\e[34m+\e[m] \e[1mOSDP  \e[m TIMEOUT \u2190 \e[34m%1"(
+                        *p
+                        ));
+	}
+	else
+	{
+                representation.addHyperText($"[\e^-1\e[34m-\e[m] \e[1mOSDP\n"
+                                            $"    Address:\t\e[34m%1\n"
+                                            $"    Reply:\t\e[34mTimeout"(
+			*p
+			));
+        }
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void representPacket(
+	log.Representation* representation,
+	void const* p,
+	size_t size,
+	uint_t foldFlags
+	)
+{
+	OsdpHdr const* hdr = (OsdpHdr const*)p;
+
+        if ((hdr.m_code != OsdpCmdReplyCode.osdp_POLL) && (!hdr.m_direction))
+        {
+                representation.m_lineAttr.m_backColor = ui.StdColor.PastelPurple;
+        }
+        else if ((hdr.m_code != OsdpCmdReplyCode.osdp_ACK) && (hdr.m_direction))
+        {
+		representation.m_lineAttr.m_backColor = ui.StdColor.PastelOrange;
+        }
+        else 
+        {
+		representation.m_lineAttr.m_backColor = ui.StdColor.PastelGray;
+        }
+                
+	representation.m_lineAttr.m_iconIdx = hdr.m_direction ?
+		log.StdLogIcon.RxPacket :
+		log.StdLogIcon.TxPacket;
+
+	if (!foldFlags)
+	{
+                representation.addHyperText($"[\e^+1\e[34m+\e[m] \e[1m%1\e[m %2 %3 \e[34m%4"(
+                        hdr.m_direction ? $"OSDP  " : $"OSDP  ",
+                        typeof(OsdpCmdReplyCode).getValueString(hdr.m_code),
+                        hdr.m_direction ? "\u2190" : "\u2192",
+                        hdr.m_address
+                        ));
+	}
+	else
+	{
+                representation.addHyperText($"[\e^-1\e[34m-\e[m] \e[1m%1\n"
+                                            $"    Address:\t\e^!1,1\e[34m%2\n"
+                                            $"    Length:\t\e^!2,2\e[34m%3\n"
+                                            $"    Sequence:\t\e^!4,1\e[34m%4\n"
+                                            $"    %5:\t\e^!5,1\e[34m%6"(
+			hdr.m_direction ? $"OSDP  " : $"OSDP  ",
+			hdr.m_address,
+			hdr.m_length,
+			hdr.m_sqn,
+			hdr.m_direction ? $"Reply" : $"Command",
+			typeof(OsdpCmdReplyCode).getValueString(hdr.m_code)
+			));
+
+                if (hdr.m_ctrl & OsdpCtrl.Crc)
+		{
+                        OsdpCrc const* crc = (OsdpCrc const*)(p + size - 2);
+                        representation.addHyperText($"    CRC16:\t\e^!%1,2\e[34m0x%(2; 04x)"(
+                                size - 2,
+                                crc.m_crc
+                                ));
+		}  
+                                
+                jnc.StructType* type;
+                
+                switch (hdr.m_code)
+                {
+                        // Commands
+                        case OsdpCmdReplyCode.osdp_ID:
+                                type = typeof(OsdpId);
+                                break;
+                        case OsdpCmdReplyCode.osdp_CAP:
+                                type = typeof(OsdpCap);
+                                break;
+                        case OsdpCmdReplyCode.osdp_OUT:
+                                type = typeof(OsdpOut);
+                                break;
+                        case OsdpCmdReplyCode.osdp_LED:
+                                type = typeof(OsdpLed);
+                                break;
+                        case OsdpCmdReplyCode.osdp_BUZ:
+                                type = typeof(OsdpBuz);
+                                break;
+                        case OsdpCmdReplyCode.osdp_COMSET:
+                                type = typeof(OsdpComset);
+                                break;
+                        case OsdpCmdReplyCode.osdp_MFG:
+                                type = typeof(OsdpMfg);
+                                break;
+                                
+                        // Replies
+                        case OsdpCmdReplyCode.osdp_NAK:
+                                type = typeof(OsdpNak);
+                                break;
+                        case OsdpCmdReplyCode.osdp_PDID:
+                                type = typeof(OsdpPdid);
+                                break;
+                        case OsdpCmdReplyCode.osdp_LSTATR:
+                                type = typeof(OsdpLstatr);
+                                break;
+                        case OsdpCmdReplyCode.osdp_COM:
+                                type = typeof(OsdpCom);
+                                break;
+                        case OsdpCmdReplyCode.osdp_MFGREP:
+                                type = typeof(OsdpMfgrep);
+                                break;
+                        case OsdpCmdReplyCode.osdp_PDCAP:
+                                type = null;
+                                representOsdpPdcap(representation, p + 6, hdr.m_length - 8);
+                                break;
+                        case OsdpCmdReplyCode.osdp_ISTATR:
+                                type = null;
+                                representOsdpIstatr(representation, p + 6, hdr.m_length - 8);
+                                break;
+                        case OsdpCmdReplyCode.osdp_OSTATR:
+                                type = null;
+                                representOsdpOstatr(representation, p + 6, hdr.m_length - 8);
+                                break;
+                        case OsdpCmdReplyCode.osdp_RAW:
+                                type = null;
+                                representOsdpRaw(representation, p + 6, hdr.m_length - 8);
+                                break;
+                                
+                        // Default
+                        default:
+                                type = null;
+                                break;
+                }
+                
+                if (type)
+                {
+                        representation.addPlainText($" ");
+                        
+                        log.representStruct(
+                            representation,
+                            type,
+                            $"Data",
+                            OsdpLogPartCode.RawPacket,
+                            p+6,
+                            6,
+                            1, 0, 0
+                            );
+                }
+
+		representation.m_lineAttr.m_backColor = ui.StdColor.White;
+		representation.addBin(OsdpLogPartCode.RawPacket, p, size);
+	}
+}
+
+//..............................................................................

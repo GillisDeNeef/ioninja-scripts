@@ -1,0 +1,43 @@
+//..............................................................................
+//
+// OSDP crc16 calculator
+//
+
+import "crc16.jnc"
+
+//..............................................................................
+
+class OsdpCrcCalcRangeProcessor: log.RangeProcessor
+{
+protected:
+	OsdpInfoSet* m_infoSet;
+	uint16_t m_crc16;
+
+public:
+	static OsdpCrcCalcRangeProcessor* factory(OsdpInfoSet* infoSet)
+	{
+		return new OsdpCrcCalcRangeProcessor(infoSet);
+	}
+
+protected:
+	construct(OsdpInfoSet* infoSet)
+	{
+		m_infoSet = infoSet;
+	}
+
+	override processBin(
+		uint64_t partCode,
+		void const* p,
+		size_t size
+		)
+        {
+                m_crc16 = crc16_ccitt(p, size, 0x1D0F);
+        }
+
+	override processEndOfRange()
+        {
+                m_infoSet.m_crc16Info.m_value = $"$(m_crc16; 04X)";
+        }
+}
+
+//..............................................................................

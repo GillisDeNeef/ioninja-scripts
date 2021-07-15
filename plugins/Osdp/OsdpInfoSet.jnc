@@ -1,0 +1,38 @@
+//..............................................................................
+//
+// OSDP info set definitions
+//
+
+import "ui_InformationGrid.jnc"
+
+//..............................................................................
+
+class OsdpInfoSet
+{
+	enum InfoId
+	{
+		Crc16, 
+
+		_Count
+	}
+
+	ui.InformationValue* m_crc16Info;
+
+public:
+	void create(ui.InformationGrid* informationGrid);
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+void OsdpInfoSet.create(ui.InformationGrid* informationGrid)
+{
+	ui.InformationGroup* group = informationGrid.createGroup("OSDP statistics");
+
+	m_crc16Info = informationGrid.createValue(
+			group,,true,
+			"CRC-16 (OSDP)",
+			"Select a range in the log to calculate crc"
+			);
+}
+
+//..............................................................................
