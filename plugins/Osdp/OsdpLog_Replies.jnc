@@ -144,4 +144,26 @@ struct OsdpMfgrep
         uint8_t m_id;
 }
 
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpCcrypt
+{
+        [ displayName = "Client ID", formatFunc = formatHex8String ]
+        uint8_t m_cuid[8];
+        
+        [ displayName = "Random B", formatFunc = formatHex8String ]
+        uint8_t m_random[8];
+        
+        [ displayName = "Client Cryptogram", formatFunc = formatHex16String ]
+        uint8_t m_cryptogram[16];
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpRmaci
+{       
+        [ displayName = "R-MAC Initial", formatFunc = formatHex16String ]
+        uint8_t m_maci[16];
+}
+
 //..............................................................................

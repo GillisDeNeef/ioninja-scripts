@@ -123,12 +123,17 @@ void representPacket(
 	)
 {
 	OsdpHdr const* hdr = (OsdpHdr const*)p;
+        OsdpScbHdr const* scbHdr = (OsdpScbHdr const*)(hdr + 1);
+        OsdpScbData const* scbData = (OsdpScbData const*)(scbHdr + 1);
+	OsdpCmdReply const* cmdReply = (hdr.m_ctrl & OsdpCtrl.Scb) ?
+		(OsdpCmdReply const*)((char const*)scbHdr + scbHdr.m_length) :
+		(OsdpCmdReply const*)(hdr + 1);
 
-        if ((hdr.m_code != OsdpCmdReplyCode.osdp_POLL) && (!hdr.m_direction))
+        if ((cmdReply.m_code != OsdpCmdReplyCode.osdp_POLL) && (!hdr.m_direction))
         {
                 representation.m_lineAttr.m_backColor = ui.StdColor.PastelPurple;
         }
-        else if ((hdr.m_code != OsdpCmdReplyCode.osdp_ACK) && (hdr.m_direction))
+        else if ((cmdReply.m_code != OsdpCmdReplyCode.osdp_ACK) && (hdr.m_direction))
         {
 		representation.m_lineAttr.m_backColor = ui.StdColor.PastelOrange;
         }
@@ -144,27 +149,62 @@ void representPacket(
 	if (!foldFlags)
 	{
                 representation.addHyperText($"[\e^+1\e[34m+\e[m] \e[1m%1\e[m %2 %3 \e[34m%4"(
-                        hdr.m_direction ? $"OSDP  " : $"OSDP  ",
-                        typeof(OsdpCmdReplyCode).getValueString(hdr.m_code),
+                        (hdr.m_ctrl & OsdpCtrl.Scb) ? $"OSDP* " : $"OSDP  ",
+                        (cmdReply.m_code != 0x76) ? typeof(OsdpCmdReplyCode).getValueString(cmdReply.m_code) : hdr.m_direction ? "osdp_CCRYPT" : "osdp_CHLNG",
                         hdr.m_direction ? "\u2190" : "\u2192",
                         hdr.m_address
                         ));
 	}
 	else
 	{
+                size_t scb_size = 0;
+                size_t mac_size = 0; 
+                
                 representation.addHyperText($"[\e^-1\e[34m-\e[m] \e[1m%1\n"
                                             $"    Address:\t\e^!1,1\e[34m%2\n"
                                             $"    Length:\t\e^!2,2\e[34m%3\n"
-                                            $"    Sequence:\t\e^!4,1\e[34m%4\n"
-                                            $"    %5:\t\e^!5,1\e[34m%6"(
-			hdr.m_direction ? $"OSDP  " : $"OSDP  ",
+                                            $"    Sequence:\t\e^!4,1\e[34m%4"(
+			(hdr.m_ctrl & OsdpCtrl.Scb) ? $"OSDP* " : $"OSDP  ",
 			hdr.m_address,
 			hdr.m_length,
-			hdr.m_sqn,
-			hdr.m_direction ? $"Reply" : $"Command",
-			typeof(OsdpCmdReplyCode).getValueString(hdr.m_code)
+			hdr.m_sqn
 			));
+                      
+                if (hdr.m_ctrl & OsdpCtrl.Scb)
+		{
+                        scb_size = scbHdr.m_length;
+                        
+                        representation.addHyperText($"    SEC_BLK_LEN:\t\e^!5,1\e[34m%1\n"
+                                                    $"    SEC_BLK_TYPE:\t\e^!6,1\e[34m%(2; 02x)"(
+                                scbHdr.m_length,
+                                scbHdr.m_type
+                                ));
+                        
+                        if (scbHdr.m_length > 2)
+                        {
+                            representation.addHyperText($"    SEC_BLK_DATA:\t\e^!7,1\e[34m%(1; 02x)"(
+                                        scbData.m_data
+                                        ));
+                        }
+                }
+                
+                representation.addHyperText($"    %1:\t\e^!%2,1\e[34m%3"(
+                                hdr.m_direction ? $"Reply" : $"Command",
+                                5 + scb_size,
+                                (cmdReply.m_code != 0x76) ? typeof(OsdpCmdReplyCode).getValueString(cmdReply.m_code) : hdr.m_direction ? "osdp_CCRYPT" : "osdp_CHLNG"
+                                ));
+                
+                if ((hdr.m_ctrl & OsdpCtrl.Scb) && (scbHdr.m_type >= 0x15) &&(scbHdr.m_type <= 0x18))
+		{        
+                        mac_size = 4;
 
+                        OsdpMac const* mac = (OsdpMac const*)(p + size - 6);
+                        representation.addHyperText($"    MAC:\t\e^!%1,4\e[34m0x%(2; 08x)"(
+                                size - 6,
+                                mac.m_mac
+                                ));
+		}  
+                
                 if (hdr.m_ctrl & OsdpCtrl.Crc)
 		{
                         OsdpCrc const* crc = (OsdpCrc const*)(p + size - 2);
@@ -173,87 +213,122 @@ void representPacket(
                                 crc.m_crc
                                 ));
 		}  
-                                
-                jnc.StructType* type;
                 
-                switch (hdr.m_code)
-                {
-                        // Commands
-                        case OsdpCmdReplyCode.osdp_ID:
-                                type = typeof(OsdpId);
-                                break;
-                        case OsdpCmdReplyCode.osdp_CAP:
-                                type = typeof(OsdpCap);
-                                break;
-                        case OsdpCmdReplyCode.osdp_OUT:
-                                type = typeof(OsdpOut);
-                                break;
-                        case OsdpCmdReplyCode.osdp_LED:
-                                type = typeof(OsdpLed);
-                                break;
-                        case OsdpCmdReplyCode.osdp_BUZ:
-                                type = typeof(OsdpBuz);
-                                break;
-                        case OsdpCmdReplyCode.osdp_COMSET:
-                                type = typeof(OsdpComset);
-                                break;
-                        case OsdpCmdReplyCode.osdp_MFG:
-                                type = typeof(OsdpMfg);
-                                break;
-                                
-                        // Replies
-                        case OsdpCmdReplyCode.osdp_NAK:
-                                type = typeof(OsdpNak);
-                                break;
-                        case OsdpCmdReplyCode.osdp_PDID:
-                                type = typeof(OsdpPdid);
-                                break;
-                        case OsdpCmdReplyCode.osdp_LSTATR:
-                                type = typeof(OsdpLstatr);
-                                break;
-                        case OsdpCmdReplyCode.osdp_COM:
-                                type = typeof(OsdpCom);
-                                break;
-                        case OsdpCmdReplyCode.osdp_MFGREP:
-                                type = typeof(OsdpMfgrep);
-                                break;
-                        case OsdpCmdReplyCode.osdp_PDCAP:
-                                type = null;
-                                representOsdpPdcap(representation, p + 6, hdr.m_length - 8);
-                                break;
-                        case OsdpCmdReplyCode.osdp_ISTATR:
-                                type = null;
-                                representOsdpIstatr(representation, p + 6, hdr.m_length - 8);
-                                break;
-                        case OsdpCmdReplyCode.osdp_OSTATR:
-                                type = null;
-                                representOsdpOstatr(representation, p + 6, hdr.m_length - 8);
-                                break;
-                        case OsdpCmdReplyCode.osdp_RAW:
-                                type = null;
-                                representOsdpRaw(representation, p + 6, hdr.m_length - 8);
-                                break;
-                                
-                        // Default
-                        default:
-                                type = null;
-                                break;
-                }
-                
-                if (type)
-                {
-                        representation.addPlainText($" ");
+                if ((hdr.m_ctrl & OsdpCtrl.Scb) && ((scbHdr.m_type == 0x17) || (scbHdr.m_type == 0x18)))
+		{  
+                        std.StringBuilder encrypted;
+                        for (int i = 0; i < hdr.m_length - scb_size - mac_size - 8; i++) 
+                        {
+                                encrypted.append($"%02X "((*((char const*)p+6+scb_size+i))&0xFF));
+                        }
                         
-                        log.representStruct(
-                            representation,
-                            type,
-                            $"Data",
-                            OsdpLogPartCode.RawPacket,
-                            p+6,
-                            6,
-                            1, 0, 0
-                            );
+                        representation.addHyperText($"\n    Encrypted Data:\t\e^!%1,%2\e[34m%3"(
+                                6 + scb_size,
+                                hdr.m_length - scb_size - mac_size - 8,
+                                encrypted.detachString()
+                                ));
                 }
+                else 
+                {
+                        jnc.StructType* type;
+                
+                        switch (cmdReply.m_code)
+                        {
+                                // Commands
+                                case OsdpCmdReplyCode.osdp_ID:
+                                        type = typeof(OsdpId);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_CAP:
+                                        type = typeof(OsdpCap);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_OUT:
+                                        type = typeof(OsdpOut);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_LED:
+                                        type = typeof(OsdpLed);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_BUZ:
+                                        type = typeof(OsdpBuz);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_COMSET:
+                                        type = typeof(OsdpComset);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_MFG:
+                                        type = typeof(OsdpMfg);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_SCRYPT:
+                                        type = typeof(OsdpScrypt);
+                                        break;
+
+                                // Replies
+                                case OsdpCmdReplyCode.osdp_NAK:
+                                        type = typeof(OsdpNak);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_PDID:
+                                        type = typeof(OsdpPdid);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_LSTATR:
+                                        type = typeof(OsdpLstatr);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_COM:
+                                        type = typeof(OsdpCom);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_MFGREP:
+                                        type = typeof(OsdpMfgrep);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_PDCAP:
+                                        type = null;
+                                        representOsdpPdcap(representation, p + 6 + scb_size, hdr.m_length - scb_size - mac_size - 8);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_ISTATR:
+                                        type = null;
+                                        representOsdpIstatr(representation, p + 6 + scb_size, hdr.m_length - scb_size - mac_size - 8);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_OSTATR:
+                                        type = null;
+                                        representOsdpOstatr(representation, p + 6 + scb_size, hdr.m_length - scb_size - mac_size - 8);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_RAW:
+                                        type = null;
+                                        representOsdpRaw(representation, p + 6 + scb_size, hdr.m_length - scb_size - mac_size - 8);
+                                        break;
+                                case OsdpCmdReplyCode.osdp_RMACI:
+                                        type = typeof(OsdpRmaci);
+                                        break;
+
+                                // Shared command / reply id
+                                case OsdpCmdReplyCode.osdp_CHLNG: //0x76 used by CHLNG and CCRYPT
+                                        if (hdr.m_direction) 
+                                        {
+                                                type = typeof(OsdpCcrypt);
+                                        }
+                                        else
+                                        {
+                                                type = typeof(OsdpChlng);
+                                        }
+                                        break;
+                                
+                                // Default
+                                default:
+                                        type = null;
+                                        break;
+                        }
+
+                        if (type)
+                        {
+                                representation.addPlainText($" ");
+
+                                log.representStruct(
+                                    representation,
+                                    type,
+                                    $"Data",
+                                    OsdpLogPartCode.RawPacket,
+                                    p + 6 + scb_size,
+                                    6 + scb_size,
+                                    1, 0, 0
+                                    );
+                        }
+                }              
 
 		representation.m_lineAttr.m_backColor = ui.StdColor.White;
 		representation.addBin(OsdpLogPartCode.RawPacket, p, size);

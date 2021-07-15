@@ -97,6 +97,32 @@ char const* formatHex24(void const* p0)
 
 // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
+char const* formatHex8String(void const* p0)
+{
+        uchar_t const* p = p0;
+        std.StringBuilder string;
+        for (int i = 0; i < 8; i++) 
+        {
+                string.append($"%02X "(((*(p+i))&0xFF)));
+        }
+        return string.detachString();
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+char const* formatHex16String(void const* p0)
+{
+        uchar_t const* p = p0;
+        std.StringBuilder string;
+        for (int i = 0; i < 16; i++) 
+        {
+                string.append($"%02X "(((*(p+i))&0xFF)));
+        }
+        return string.detachString();
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
 char const* formatBitToByte(void const* p0)
 {
         uchar_t const* p = p0;
@@ -129,9 +155,41 @@ struct OsdpHdr
 
 	[displayName = "Control", displayType = typeof(OsdpCtrl) ]
 	uchar_t m_ctrl : 6;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpScbHdr
+{
+        [ displayName = "Security Block Length" ]
+	uchar_t m_length;
         
-        [ displayName = "Command/Reply Code" ]
+        [ displayName = "Security Block Type" ]
+	uchar_t m_type;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpScbData
+{
+        [ displayName = "Security Block Data" ]
+	uchar_t m_data;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpCmdReply
+{
+	[ displayName = "Command/Reply Code" ]
 	OsdpCmdReplyCode m_code;
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpMac
+{
+	[displayName = "MAC", formatSpec  = "0x%08X" ]
+	uint32_t m_mac;
 }
 
 // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .

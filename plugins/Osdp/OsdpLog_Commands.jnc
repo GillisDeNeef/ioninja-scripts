@@ -176,4 +176,34 @@ struct OsdpMfg
         uint8_t m_id;
 }
 
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpKeyset
+{   
+        [ displayName = "Key Type" ]
+        uint8_t m_type;
+        
+        [ displayName = "Key Length" ]
+        uint8_t m_length;
+        
+        [ displayName = "Key", formatFunc = formatHex16String ]
+        uint8_t m_key[16];
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpChlng
+{   
+        [ displayName = "Random A", formatFunc = formatHex8String ]
+        uint8_t m_random[8];
+}
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+struct OsdpScrypt
+{   
+        [ displayName = "Server Cryptogram", formatFunc = formatHex16String ]
+        uint8_t m_cryptogram[16];
+}
+
 //..............................................................................
