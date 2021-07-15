@@ -142,9 +142,13 @@ void OsdpParser.parse(
                                 break;
                         }
                         
+                        uint8_t scb_len = 0;
+                        if (m_packet[4] & 0x08)
+                                scb_len = m_packet[5];
+                        
                         if (!m_filter_poll)
                                 writer.write(timestamp, OsdpLogRecordCode.Packet, m_packet.m_p, m_packet.m_size);
-                        else if (m_packet.m_p[5] != OsdpCmdReplyCode.osdp_POLL && m_packet.m_p[5] != OsdpCmdReplyCode.osdp_ACK)
+                        else if (m_packet.m_p[5+scb_len] != OsdpCmdReplyCode.osdp_POLL && m_packet.m_p[5+scb_len] != OsdpCmdReplyCode.osdp_ACK)
                                 writer.write(timestamp, OsdpLogRecordCode.Packet, m_packet.m_p, m_packet.m_size);
                         
 			m_parserState = ParserState.Idle;
